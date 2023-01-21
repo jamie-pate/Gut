@@ -61,7 +61,10 @@ const LOG_LEVEL_ALL_ASSERTS = 2
 const WAITING_MESSAGE = '/# waiting #/'
 const PAUSE_MESSAGE = '/# Pausing.  Press continue button...#/'
 const COMPLETED = 'completed'
-const YIELD_FROM_OBJ = {}
+
+# use a class as a sentinel value since it can be used in expressions that require a const value
+class YIELD_FROM_OBJ:
+	pass
 
 var _utils = load('res://addons/gut/utils.gd').get_instance()
 var _lgr = _utils.get_logger()
@@ -331,11 +334,7 @@ func _yielding_callback(
 		__arg1, __arg2, __arg3, __arg4, __arg5,
 		__arg6, __arg7, __arg8, __arg9, __arg10
 	]
-	var from_obj = false
-	for arg in args:
-		if arg == YIELD_FROM_OBJ:
-			from_obj = true
-			break
+	var from_obj = YIELD_FROM_OBJ in args
 
 	_lgr.end_yield()
 	if(_yielding_to.obj):

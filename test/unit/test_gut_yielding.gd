@@ -31,10 +31,10 @@ class TimeSignalerParam:
 	var _emitted_param
 
 	func _init(emitted_param = 1):
-		_emittied_param = emitted_param
+		_emitted_param = emitted_param
 
 	func _on_timer_timeout():
-		emit_signal('the_signal', emitted_param)
+		emit_signal('the_signal', _emitted_param)
 
 class TimedSignalerMaxParams:
 	extends TimedSignaler
