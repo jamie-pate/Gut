@@ -1242,13 +1242,22 @@ func yield_for(time, msg=''):
 # Yield to a signal or a maximum amount of time, whichever comes first.  When
 # the conditions are met the YIELD signal will be emitted.
 # ------------------------------------------------------------------------------
-func yield_to(obj, signal_name, max_wait, msg=''):
+func yield_to(obj, signal_name, max_wait, msg='', fail_on_timeout = false):
 	watch_signals(obj)
-	gut.set_yield_signal_or_time(obj, signal_name, max_wait, msg)
+	gut.set_yield_signal_or_time(obj, signal_name, max_wait, msg, true)
 
 	return gut
 
 # ------------------------------------------------------------------------------
+# Yield to a signal or a maximum amount of time, whichever comes first.  When
+# the conditions are met the YIELD signal will be emitted.
+# Additionally, fail the test if a timeout occurs
+# ------------------------------------------------------------------------------
+func must_yield_to(obj, signal_name, max_wait, msg=''):
+	yield_to(obj, signal_name, max_wait, msg, true)
+	return gut
+
+# ---------------------------------------------------------------------
 # Yield for a number of frames.  The optional message will be printed. when
 # Gut detects a yield.  When the number of frames have elapsed (counted in gut's
 # _process function) the YIELD signal will be emitted.

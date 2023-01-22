@@ -62,8 +62,10 @@ const WAITING_MESSAGE = '/# waiting #/'
 const PAUSE_MESSAGE = '/# Pausing.  Press continue button...#/'
 const COMPLETED = 'completed'
 
-# use a class as a sentinel value since it can be used in expressions that require a const value
+# use classes for sentinel values since they can be used in constant expressions
 class YIELD_FROM_OBJ:
+	pass
+class NO_ARG:
 	pass
 
 var _utils = load('res://addons/gut/utils.gd').get_instance()
@@ -115,7 +117,10 @@ var _new_summary = null
 
 var _yielding_to = {
 	obj = null,
-	signal_name = ''
+	signal_name = '',
+	fail_on_timeout = '',
+	max_wait = 0,
+	result = null
 }
 
 var _stubber = _utils.Stubber.new()
@@ -325,26 +330,34 @@ func _on_log_level_changed(value):
 # on _on_watched_signal explains reasoning.
 # ------------------------------------------------------------------------------
 func _yielding_callback(
-		__arg1=null, __arg2=null, __arg3=null,
-		__arg4=null, __arg5=null, __arg6=null,
-		__arg7=null, __arg8=null, __arg9=null,
-		# one extra for the sentinel
-		__arg10=null):
+		__arg1=NO_ARG, __arg2=NO_ARG, __arg3=NO_ARG,
+		__arg4=NO_ARG, __arg5=NO_ARG, __arg6=NO_ARG,
+		__arg7=NO_ARG, __arg8=NO_ARG, __arg9=NO_ARG,
+		# one extra for the bound YIELD_FROM_OBJ argument
+		__arg10=NO_ARG):
 	var args = [
 		__arg1, __arg2, __arg3, __arg4, __arg5,
 		__arg6, __arg7, __arg8, __arg9, __arg10
 	]
 	var from_obj = YIELD_FROM_OBJ in args
+	args.erase(YIELD_FROM_OBJ)
+	while NO_ARG in args:
+		args.erase(NO_ARG)
 
 	_lgr.end_yield()
 	if(_yielding_to.obj):
+		if !from_obj && _yielding_to.fail_on_timeout:
+			_fail(str(
+				_yielding_to.fail_on_timeout, ': ',
+				_yielding_to.obj, 'failed to emit ', _yielding_to.signal_name,
+				' within ', _yielding_to.max_wait ,'s'
+			))
 		_yielding_to.obj.call_deferred(
 			"disconnect",
 			_yielding_to.signal_name, self,
 			'_yielding_callback')
 		_yielding_to.obj = null
 		_yielding_to.signal_name = ''
-
 	if(from_obj):
 		# we must yield for a little longer after the signal is emitted so that
 		# the signal can propagate to other objects.  This was discovered trying
@@ -354,8 +367,11 @@ func _yielding_callback(
 		# and come back into this method but from_obj will be false.
 		_yield_timer.set_wait_time(.1)
 		_yield_timer.start()
+		_yielding_to.fail_on_timeout = ''
+		_yielding_to.result = args
 	else:
-		emit_signal('timeout')
+		var result = _yielding_to.result if _yielding_to.result else []
+		callv('emit_signal', ['timeout'] + result)
 
 # ------------------------------------------------------------------------------
 # completed signal for GDScriptFucntionState returned from a test script that
@@ -1409,10 +1425,14 @@ func set_yield_frames(frames, text=''):
 # This method handles yielding to a signal from an object or a maximum
 # number of seconds, whichever comes first.
 # ------------------------------------------------------------------------------
-func set_yield_signal_or_time(obj, signal_name, max_wait, text=''):
+func set_yield_signal_or_time(obj, signal_name, max_wait, text='', fail_on_timeout = false):
 	obj.connect(signal_name, self, '_yielding_callback', [YIELD_FROM_OBJ])
+	if _yielding_to.obj:
+		_fail(str('Attempted to yield to "', signal_name, '" on ', obj, ' while already yielding to "', _yielding_to.signal_name, '" on ', _yielding_to.obj))
 	_yielding_to.obj = obj
 	_yielding_to.signal_name = signal_name
+	_yielding_to.fail_on_timeout = (text if text else '-- no message --') if fail_on_timeout else ''
+	_yielding_to.max_wait = max_wait
 
 	_yield_timer.set_wait_time(max_wait)
 	_yield_timer.start()

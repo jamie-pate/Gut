@@ -241,7 +241,37 @@ class TestYieldTo:
 		signaler.emit_after(.5)
 		yield(yield_to(signaler, 'the_signal', 5), YIELD)
 		assert_signal_emitted(signaler, 'the_signal')
+		assert_signal_emitted_with_parameters(signaler, 'the_signal', [false])
 
+	func test_yield_to_yields_emitted_value():
+		var signaler = add_child_autoqfree(TimeSignalerParam.new('value1'))
+		watch_signals(signaler)
+		signaler.emit_after(.5)
+		var emitted = yield(yield_to(signaler, 'the_signal', 5), YIELD)
+		assert_eq(emitted, 'value1')
+		assert_signal_emitted(signaler, 'the_signal')
+		assert_signal_emitted_with_parameters(signaler, 'the_signal', ['value1'])
+
+	func test_yield_to_yields_emitted_values():
+		var signaler = add_child_autoqfree(TimedSignalerMaxParams.new())
+		watch_signals(signaler)
+		signaler.emit_after(.5)
+		var emitted = yield(yield_to(signaler, 'the_signal', 5), YIELD)
+		assert_eq(emitted, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+		assert_signal_emitted(signaler, 'the_signal')
+		assert_signal_emitted_with_parameters(signaler, 'the_signal', [1, 3, 3, 4, 5, 6, 7, 8, 9])
+
+class TestMustYieldTo:
+	extends "res://test/unit/test_test.gd".BaseTestClass
+	# must_yield_to uses yield_to internally so most of the same tests should apply.
+	# this test class will only test the new behavior
+	# Unable to get this test working this design.. maybe just abandon this idea
+	func test_yield_to__will_wait_max_time():
+		var signaler = add_child_autoqfree(TimedSignaler.new())
+		gr.test_with_gut.gut._new_summary = _utils.Summary.new()
+		gr.test_with_gut.gut._new_summary.add_script('')
+		yield(gr.test_with_gut.must_yield_to(signaler, 'the_signal', 2), YIELD)
+		assert_fail(gr.test_with_gut, 1, "Should fail")
 
 class TestYieldFrames:
 	extends "res://test/gut_test.gd"
